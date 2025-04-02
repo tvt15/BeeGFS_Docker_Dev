@@ -1,0 +1,7 @@
+meta/build/beegfs-meta filter=lfs diff=lfs merge=lfs -text
+meta/build/test-runner filter=lfs diff=lfs merge=lfs -text
+ctl/build/beegfs-ctl filter=lfs diff=lfs merge=lfs -text
+fsck/build/beegfs-fsck filter=lfs diff=lfs merge=lfs -text
+fsck/build/test-runner filter=lfs diff=lfs merge=lfs -text
+mgmtd/build/beegfs-mgmtd filter=lfs diff=lfs merge=lfs -text
+storage/build/beegfs-storage filter=lfs diff=lfs merge=lfs -text

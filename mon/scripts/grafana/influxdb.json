@@ -1,0 +1,10 @@
+{
+  "name":"%DATASOURCE_NAME%",
+  "type":"influxdb",
+  "url":"%DATASOURCE_URL%",
+  "access":"proxy",
+  "user":"%DATABASE_USER%",
+  "database":"%DATABASE_NAME%",
+  "secureJsonData":{
+  "password":"%PASSWORD%"}
+}

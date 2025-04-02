@@ -1,0 +1,56 @@
+# Build artifacts
+**/build/*
+!**/build/Makefile
+!**/build/*.spec.in
+!**/build/debian/
+!**/build/make-*
+
+# Compiled object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Compiled dynamic libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Compiled static libraries
+*.a
+*.la
+*.lai
+*.lib
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS specific files
+.DS_Store
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+
+# Dependencies
+/vendor/
+/dist/
+
+# Logs
+*.log 

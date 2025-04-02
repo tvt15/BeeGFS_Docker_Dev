@@ -1,0 +1,120 @@
+version: '3'
+
+services:
+  beegfs-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beegfs-dev:latest
+    container_name: beegfs-dev
+    hostname: beegfs-dev
+    privileged: true  # Needed for some BeeGFS operations
+    volumes:
+      - .:/beegfs:rw  # Mount current directory as BeeGFS source
+      - beegfs-conf:/beegfs_conf:rw
+      - beegfs-data:/data:rw
+    ports:
+      - "28008:8008"  # Management service
+      - "28003:8003"  # Metadata service
+      - "28004:8004"  # Storage service
+      - "28006:8006"  # Helper daemon  
+      - "2222:22"    # SSH access
+    environment:
+      - BUILD_ON_START=true
+      - START_SERVICE=none  # Set to 'all', 'mgmtd', 'meta', 'storage', or 'helperd'
+    networks:
+      - beegfs-net
+    restart: unless-stopped
+
+  # Optional: Run a separate service for each component
+  beegfs-mgmtd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beegfs-dev:latest
+    container_name: beegfs-mgmtd
+    depends_on:
+      - beegfs-dev
+    volumes:
+      - .:/beegfs:rw
+      - beegfs-conf:/beegfs_conf:rw
+      - beegfs-data:/data:rw
+    environment:
+      - BUILD_ON_START=false  # Already built by beegfs-dev
+      - START_SERVICE=mgmtd
+    networks:
+      - beegfs-net
+    ports:
+      - "28008:8008"
+    restart: unless-stopped
+
+  beegfs-meta:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beegfs-dev:latest
+    container_name: beegfs-meta
+    depends_on:
+      - beegfs-mgmtd
+    volumes:
+      - .:/beegfs:rw
+      - beegfs-conf:/beegfs_conf:rw
+      - beegfs-data:/data:rw
+    environment:
+      - BUILD_ON_START=false
+      - START_SERVICE=meta
+    networks:
+      - beegfs-net
+    ports:
+      - "28003:8003"
+    restart: unless-stopped
+
+  beegfs-storage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beegfs-dev:latest
+    container_name: beegfs-storage
+    depends_on:
+      - beegfs-mgmtd
+    volumes:
+      - .:/beegfs:rw
+      - beegfs-conf:/beegfs_conf:rw
+      - beegfs-data:/data:rw
+    environment:
+      - BUILD_ON_START=false
+      - START_SERVICE=storage
+    networks:
+      - beegfs-net
+    ports:
+      - "28004:8004"
+    restart: unless-stopped
+
+  beegfs-helperd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beegfs-dev:latest
+    container_name: beegfs-helperd
+    depends_on:
+      - beegfs-mgmtd
+    volumes:
+      - .:/beegfs:rw
+      - beegfs-conf:/beegfs_conf:rw
+      - beegfs-data:/data:rw
+    environment:
+      - BUILD_ON_START=false
+      - START_SERVICE=helperd
+    networks:
+      - beegfs-net
+    ports:
+      - "28006:8006"
+    restart: unless-stopped
+
+volumes:
+  beegfs-conf:
+  beegfs-data:
+
+networks:
+  beegfs-net:
+    driver: bridge 
