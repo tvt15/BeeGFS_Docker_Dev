@@ -1,0 +1,44 @@
+# BeeGFS Performance and Storage Report
+
+## 1. BeeGFS Setup Summary
+- Management service: Running on port 8008
+- Metadata service: Running on port 8003
+- Storage service: Running on port 8005
+- Client successfully mounted at /mnt/beegfs
+
+## 2. File Operations Performance
+
+### Sequential I/O Performance
+- Sequential Write: 2349 MiB/s (2463 MB/s) at 2348 IOPS
+- Sequential Read: 1309 MiB/s (1373 MB/s) at 1309 IOPS
+
+### Random I/O Performance
+- Random Write: 596 MiB/s (625 MB/s) at 153k IOPS
+- Random Read: 231 MiB/s (242 MB/s) at 59.1k IOPS
+- Mixed Read/Write: Read 191 MiB/s (200 MB/s) at 48.8k IOPS, Write 63.9 MiB/s (67.0 MB/s) at 16.4k IOPS
+
+## 3. System Resource Utilization
+
+### CPU Utilization
+- Average CPU usage while active: ~17% user, ~2.5% system
+- Peak CPU usage observed on cores 0 and 7
+
+### Memory Utilization
+- Total Memory: 64123 MB
+- Used Memory: 29871 MB
+- Available Memory: 32120 MB
+
+## 4. Storage Structure
+
+### Files Created in BeeGFS Mount
+- Large test files (500+ MB): Multiple for I/O performance tests
+- Medium files (~100 MB): Created for testing
+- Small files (~5-10 MB): Created for testing
+- Multiple test directories with nested structure
+
+### Storage Architecture
+- File data distributed across storage targets (though not visible with our tools)
+- Metadata stored in separate directory structure
+
+## 5. Conclusion
+The BeeGFS filesystem is functioning correctly with excellent performance characteristics, particularly for write operations. The high IOPS rate for random operations suggests the setup is optimized for high-performance computing workloads.

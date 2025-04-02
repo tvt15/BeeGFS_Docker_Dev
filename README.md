@@ -148,56 +148,299 @@ the BeeGFS wiki: https://www.beegfs.io/wiki/
 Of course, we are curious about what you are doing with the BeeGFS sources, so
 don't forget to drop us a note...
 
-# BeeGFS Docker Development Environment
+# BeeGFS Docker Development and Testing Environment
 
-This repository contains a Docker-based development environment for BeeGFS (Bee GNU/Linux File System), a parallel file system for high-performance computing.
+This repository contains a Docker-based environment for building, testing, and evaluating the BeeGFS (Bee GNU/Linux File System) parallel file system, designed for high-performance computing environments.
 
 ## Overview
 
-The Docker environment provides a containerized setup to build, test, and run BeeGFS components without affecting your host system. It includes all necessary dependencies and tools required for BeeGFS development.
+The containerized setup enables you to build, test, and run BeeGFS components without affecting your host system. It includes comprehensive testing tools to evaluate performance and verify filesystem operation.
 
 ## Features
 
 - Complete development environment with all required dependencies
-- Isolated testing environment for BeeGFS components
-- Pre-configured service directories and configuration files
-- SSH access for remote development
-- Support for running various BeeGFS services (Management, Metadata, Storage, Helper)
+- Separate containerized server and client components
+- Automated setup of management, metadata, and storage services
+- Performance testing tools (fio, bonnie++, iotop, etc.)
+- Monitoring and statistics collection utilities
+- Pre-configured benchmarking scripts
 
-## Usage
+## System Architecture
 
-### Building the Docker Image
+This environment consists of the following components:
+
+1. **Server Container (`beegfs-dev`)**
+   - Runs the core BeeGFS services:
+     - Management service (port 8008)
+     - Metadata service (port 8003)
+     - Storage service (port 8005)
+   - Provides storage targets for file distribution
+   - Built from the `Dockerfile` in this repository
+
+2. **Client Container (`beegfs-client`)**
+   - Mounts the BeeGFS filesystem
+   - Provides testing and benchmarking tools
+   - Built from the `Dockerfile.client` in this repository
+
+## Quick Start
+
+### 1. Starting the BeeGFS Server
 
 ```bash
-docker build -t beegfs-dev .
+# Build and start the BeeGFS development container
+sudo ./beegfs-dev.sh start
 ```
 
-### Running the Container
+### 2. Starting the BeeGFS Client
 
 ```bash
-docker run -it --name beegfs-dev-container \
-  -v /path/to/beegfs/source:/beegfs \
-  -p 22:22 -p 8008:8008 -p 8003:8003 -p 8004:8004 \
-  beegfs-dev
+# Build and start the BeeGFS client container
+sudo ./start-client.sh
 ```
 
-### Environment Variables
+### 3. Running Performance Tests
 
-- `BUILD_ON_START`: Set to "true" to automatically build BeeGFS on container start
-- `START_SERVICE`: Specify which service to start (mgmtd, meta, storage, helperd, client, or all)
+```bash
+# Run comprehensive performance tests
+sudo ./beegfs-performance-test.sh --all
 
-### Directory Structure
+# Or run a quick benchmark
+sudo ./quick-beegfs-benchmark.sh
+```
 
-The container sets up the following directory structure for BeeGFS services:
+## Setup Instructions
 
-- `/data/mgmt_tgt_mgmt01`: Management service storage
-- `/data/meta_01_tgt_0101`: Metadata service storage
-- `/data/stor_01_tgt_101`, `/data/stor_01_tgt_102`: Storage service storage
+### Prerequisites
 
-## Development
+- Docker installed on your system
+- sudo privileges
+- At least 4GB RAM and 10GB disk space available
 
-This Docker setup is intended for development purposes. For production deployments, please refer to the official BeeGFS documentation.
+### Server Setup
+
+1. **Clone this repository**:
+   ```bash
+   git clone https://github.com/yourusername/beegfs-docker.git
+   cd beegfs-docker
+   ```
+
+2. **Start the BeeGFS server**:
+   ```bash
+   sudo ./beegfs-dev.sh start
+   ```
+
+3. **Verify server services are running**:
+   ```bash
+   sudo ./beegfs-dev.sh status
+   ```
+
+### Client Setup
+
+1. **Start the client container**:
+   ```bash
+   sudo ./start-client.sh
+   ```
+
+2. **Verify the client mount**:
+   ```bash
+   sudo ls /tmp/beegfs_client_mount
+   ```
+
+## Available Scripts
+
+### `beegfs-dev.sh`
+
+Management script for the BeeGFS server container:
+
+```bash
+# Commands:
+./beegfs-dev.sh start          # Start the development environment
+./beegfs-dev.sh stop           # Stop the development environment
+./beegfs-dev.sh build          # Build all BeeGFS components
+./beegfs-dev.sh build [comp]   # Build a specific component (mgmtd, meta, storage, etc.)
+./beegfs-dev.sh restart [svc]  # Restart a specific service
+./beegfs-dev.sh logs [svc]     # Show logs for a specific service
+./beegfs-dev.sh shell          # Get a shell in the development container
+./beegfs-dev.sh status         # Check status of BeeGFS services
+```
+
+### `start-client.sh`
+
+Script to build and run the BeeGFS client container:
+
+```bash
+# Usage:
+./start-client.sh
+```
+
+This script:
+- Builds the client container using `Dockerfile.client`
+- Stops any existing client container
+- Creates the mount directory on the host
+- Starts the client container with proper network and volume mounts
+- Waits for the BeeGFS client to initialize
+- Provides instructions for performance testing
+
+### `beegfs-performance-test.sh`
+
+Comprehensive performance testing script:
+
+```bash
+# Usage:
+./beegfs-performance-test.sh [OPTIONS]
+
+# Options:
+-c, --create      # Create test files on BeeGFS mount
+-i, --io          # Run I/O performance tests
+-s, --stats       # Collect system statistics
+-t, --targets     # Check storage targets
+-a, --all         # Run all tests
+-h, --help        # Display help message
+```
+
+### `quick-beegfs-benchmark.sh`
+
+Simplified benchmark script for quick tests:
+
+```bash
+# Usage:
+./quick-beegfs-benchmark.sh
+```
+
+This script:
+- Verifies the BeeGFS client container is running
+- Checks that the BeeGFS mount point exists
+- Runs throughput tests (write/read)
+- Performs metadata performance tests (create/list/remove files)
+- Displays summary results
+
+## Performance Testing
+
+### Running Full Performance Tests
+
+```bash
+sudo ./beegfs-performance-test.sh --all
+```
+
+This will:
+1. Create test files of various sizes
+2. Check file chunk distribution
+3. Run sequential and random I/O performance tests
+4. Collect system statistics
+5. Check storage targets status
+
+### Quick Benchmarking
+
+```bash
+sudo ./quick-beegfs-benchmark.sh
+```
+
+This simplified benchmark focuses on:
+1. Basic write/read throughput
+2. Metadata operations performance
+3. Simple system verification
+
+### Viewing Results
+
+Performance reports and statistics are available in:
+- `beegfs-performance-report.txt` - Comprehensive performance report
+- `beegfs-summary.txt` - Brief summary of configuration and tests
+
+## Container Access
+
+### Accessing the Server Container
+
+```bash
+sudo docker exec -it beegfs-dev bash
+```
+
+### Accessing the Client Container
+
+```bash
+sudo docker exec -it beegfs-client bash
+```
+
+### Accessing the BeeGFS Mount
+
+On the host:
+```bash
+sudo ls /tmp/beegfs_client_mount
+```
+
+In the client container:
+```bash
+ls /mnt/beegfs
+```
+
+## Docker Compose Configuration
+
+The project includes a `docker-compose.yml` file that defines:
+
+1. **beegfs-dev**: Main development container with services
+2. **beegfs-client**: Client container for mounting and testing
+
+### Volumes:
+- `beegfs-conf`: Configuration files
+- `beegfs-data`: Storage for BeeGFS data
+- `beegfs-client-data`: Mount point for the client
+
+### Network:
+- `beegfs-net`: Dedicated network for BeeGFS communication
+
+## Customization
+
+### Modifying Server Configuration
+
+Edit the configuration files in the `beegfs-dev` container:
+```bash
+sudo docker exec -it beegfs-dev vi /beegfs_conf/beegfs-mgmtd.conf
+sudo docker exec -it beegfs-dev vi /beegfs_conf/beegfs-meta.conf
+sudo docker exec -it beegfs-dev vi /beegfs_conf/beegfs-storage.conf
+```
+
+### Modifying Client Configuration
+
+Edit the client configuration file:
+```bash
+sudo docker exec -it beegfs-client vi /etc/beegfs/beegfs-client.conf
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Client can't connect to server**:
+   - Check that both containers are on the same network:
+     ```bash
+     sudo docker network inspect beegfs-net
+     ```
+   - Verify server services are running:
+     ```bash
+     sudo ./beegfs-dev.sh status
+     ```
+
+2. **Mount fails**:
+   - Check client logs:
+     ```bash
+     sudo docker logs beegfs-client
+     ```
+   - Try restarting the client:
+     ```bash
+     sudo docker restart beegfs-client
+     ```
+
+3. **Performance issues**:
+   - Run the performance statistics collector:
+     ```bash
+     sudo docker exec -it beegfs-client bash -c 'source /usr/local/bin/beegfs-test.sh && collect_stats'
+     ```
 
 ## License
 
-This Docker environment is provided under the same license as BeeGFS.
+This Docker environment is provided under the same license as BeeGFS. See the LICENSE.txt file for details.
+
+## Resources
+
+- [BeeGFS Official Website](https://www.beegfs.io)
+- [BeeGFS Documentation](https://doc.beegfs.io/latest/)
+- [BeeGFS GitHub Repository](https://github.com/ThinkParQ/beegfs)

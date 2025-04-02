@@ -111,9 +111,34 @@ services:
       - "28006:8006"
     restart: unless-stopped
 
+  # Client container for mounting BeeGFS
+  beegfs-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    image: beegfs-client:latest
+    container_name: beegfs-client
+    hostname: beegfs-client
+    privileged: true  # Required for module loading and mounting
+    volumes:
+      - .:/beegfs_client:rw  # Mount source for building
+      - beegfs-client-data:/mnt/beegfs:rw
+    ports:
+      - "2223:22"  # SSH access
+    depends_on:
+      - beegfs-dev
+      - beegfs-mgmtd
+      - beegfs-meta
+      - beegfs-storage
+      - beegfs-helperd
+    networks:
+      - beegfs-net
+    restart: unless-stopped
+
 volumes:
   beegfs-conf:
   beegfs-data:
+  beegfs-client-data:
 
 networks:
   beegfs-net:

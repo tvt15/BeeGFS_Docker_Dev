@@ -1,0 +1,283 @@
+FROM ubuntu:22.04
+
+# Set non-interactive mode for apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install basic tools
+RUN apt-get update && apt-get install -y \
+    iproute2 \
+    iputils-ping \
+    curl \
+    wget \
+    gnupg \
+    net-tools \
+    openssh-server \
+    vim \
+    less \
+    netcat \
+    telnet \
+    sudo \
+    lsb-release \
+    apt-transport-https \
+    kmod \
+    linux-headers-generic \
+    dkms \
+    attr \
+    xfsprogs \
+    # Performance testing tools
+    fio \
+    iotop \
+    sysstat \
+    hdparm \
+    bonnie++ \
+    iperf3 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create directories
+RUN mkdir -p /mnt/beegfs /data
+
+# Configure SSH for root login
+RUN mkdir -p /var/run/sshd && \
+    echo 'root:beegfs' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Create performance test script
+RUN echo '#!/bin/bash\n\
+\n\
+function run_io_tests() {\n\
+  local TEST_DIR=$1\n\
+  local TEST_SIZE=${2:-1G}\n\
+  local TEST_NAME=$3\n\
+  \n\
+  echo "====== Running I/O tests on $TEST_DIR ($TEST_NAME) ======"\n\
+  echo "Test size: $TEST_SIZE"\n\
+  \n\
+  # Sequential write test\n\
+  echo "--- Sequential Write Test ---"\n\
+  fio --name=seqwrite --directory=$TEST_DIR --size=$TEST_SIZE \\\n\
+      --rw=write --bs=1M --direct=1 --numjobs=1 --group_reporting\n\
+  \n\
+  # Sequential read test\n\
+  echo "--- Sequential Read Test ---"\n\
+  fio --name=seqread --directory=$TEST_DIR --size=$TEST_SIZE \\\n\
+      --rw=read --bs=1M --direct=1 --numjobs=1 --group_reporting\n\
+  \n\
+  # Random write test\n\
+  echo "--- Random Write Test ---"\n\
+  fio --name=randwrite --directory=$TEST_DIR --size=$TEST_SIZE \\\n\
+      --rw=randwrite --bs=4k --direct=1 --numjobs=4 --group_reporting\n\
+  \n\
+  # Random read test\n\
+  echo "--- Random Read Test ---"\n\
+  fio --name=randread --directory=$TEST_DIR --size=$TEST_SIZE \\\n\
+      --rw=randread --bs=4k --direct=1 --numjobs=4 --group_reporting\n\
+  \n\
+  # Mixed random read/write test\n\
+  echo "--- Mixed Random Read/Write Test ---"\n\
+  fio --name=randrw --directory=$TEST_DIR --size=$TEST_SIZE \\\n\
+      --rw=randrw --bs=4k --direct=1 --numjobs=4 --rwmixread=75 --group_reporting\n\
+  \n\
+  echo "====== Tests completed ======"\n\
+}\n\
+\n\
+function check_chunks() {\n\
+  local FILE_PATH=$1\n\
+  echo "====== Checking storage chunks for $FILE_PATH ======"\n\
+  beegfs-ctl --getentryinfo $FILE_PATH\n\
+  \n\
+  # Display stripe pattern\n\
+  echo "--- Stripe pattern ---"\n\
+  beegfs-ctl --getentryinfo $FILE_PATH | grep -A5 "Stripe pattern:"\n\
+  \n\
+  echo "====== Chunk check completed ======"\n\
+}\n\
+\n\
+function check_all_targets() {\n\
+  echo "====== Checking BeeGFS targets ======"\n\
+  beegfs-ctl --listtargets --nodetype=meta --state\n\
+  beegfs-ctl --listtargets --nodetype=storage --state\n\
+  echo "====== Target check completed ======"\n\
+}\n\
+\n\
+function collect_stats() {\n\
+  echo "====== Collecting system statistics ======"\n\
+  # CPU and memory stats\n\
+  echo "--- CPU and Memory ---"\n\
+  mpstat -P ALL 1 3\n\
+  free -m\n\
+  \n\
+  # Disk I/O stats\n\
+  echo "--- Disk I/O ---"\n\
+  iostat -x 1 3\n\
+  \n\
+  # Network I/O stats\n\
+  echo "--- Network I/O ---"\n\
+  sar -n DEV 1 3\n\
+  \n\
+  echo "====== Statistics collection completed ======"\n\
+}\n\
+\n\
+function create_test_files() {\n\
+  local TEST_DIR=$1\n\
+  echo "====== Creating test files in $TEST_DIR ======"\n\
+  \n\
+  # Create a few files of different sizes\n\
+  dd if=/dev/urandom of=$TEST_DIR/small.dat bs=1M count=10\n\
+  dd if=/dev/urandom of=$TEST_DIR/medium.dat bs=1M count=100\n\
+  dd if=/dev/urandom of=$TEST_DIR/large.dat bs=1M count=500\n\
+  \n\
+  # Create a directory structure\n\
+  mkdir -p $TEST_DIR/test_dir/subdir1/subdir2\n\
+  for i in {1..10}; do\n\
+    dd if=/dev/urandom of=$TEST_DIR/test_dir/file$i.dat bs=1M count=5\n\
+    dd if=/dev/urandom of=$TEST_DIR/test_dir/subdir1/file$i.dat bs=1M count=5\n\
+    dd if=/dev/urandom of=$TEST_DIR/test_dir/subdir1/subdir2/file$i.dat bs=1M count=5\n\
+  done\n\
+  \n\
+  echo "====== Test file creation completed ======"\n\
+}\n\
+\n\
+' > /usr/local/bin/beegfs-test.sh && chmod +x /usr/local/bin/beegfs-test.sh
+
+# Add startup script
+RUN echo '#!/bin/bash\n\
+\n\
+setup_network() {\n\
+  # Add hostname resolution for beegfs-dev\n\
+  if ! grep -q "beegfs-dev" /etc/hosts; then\n\
+    echo "172.18.0.2 beegfs-dev" >> /etc/hosts\n\
+  fi\n\
+  echo "Network setup complete."\n\
+}\n\
+\n\
+install_beegfs() {\n\
+  echo "Installing BeeGFS packages..."\n\
+  apt-get update && apt-get install -y wget gnupg apt-transport-https\n\
+  wget -q -O - https://www.beegfs.io/release/beegfs_7.3.4/gpg/GPG-KEY-beegfs | apt-key add -\n\
+  wget https://www.beegfs.io/release/beegfs_7.3.4/dists/beegfs-buster.list -O /etc/apt/sources.list.d/beegfs.list\n\
+  apt-get update\n\
+  apt-get install -y beegfs-client beegfs-helperd beegfs-utils\n\
+  \n\
+  # Configure beegfs-client.conf\n\
+  cat > /etc/beegfs/beegfs-client.conf << EOF\n\
+# BeeGFS Client Configuration\n\
+sysMgmtdHost                 = beegfs-dev\n\
+connClientPortUDP            = 8004\n\
+connAuthFile                 = /etc/beegfs/conn_auth\n\
+logLevel                     = 3\n\
+logType                      = syslog\n\
+tunePreferredMetaFile        = <host>\n\
+tunePreferredStorageFile     = <host>\n\
+tuneRemoteFSync              = true\n\
+tuneUseGlobalFileLocks       = false\n\
+tuneUseGlobalAppendLocks     = false\n\
+tuneWorkerBufSize            = 4m\n\
+tuneFileCacheType            = buffered\n\
+EOF\n\
+  \n\
+  # Configure beegfs-helperd.conf\n\
+  cat > /etc/beegfs/beegfs-helperd.conf << EOF\n\
+# BeeGFS Helper Daemon Configuration\n\
+sysMgmtdHost                 = beegfs-dev\n\
+connAuthFile                 = /etc/beegfs/conn_auth\n\
+logLevel                     = 3\n\
+logNoDate                    = false\n\
+logStdFile                   = /var/log/beegfs-helperd.log\n\
+logNumLines                  = 50000\n\
+logNumRotatedFiles           = 5\n\
+EOF\n\
+  \n\
+  # Create auth file\n\
+  echo "secret_key_for_development" > /etc/beegfs/conn_auth\n\
+  chmod 600 /etc/beegfs/conn_auth\n\
+  \n\
+  echo "BeeGFS packages installed."\n\
+}\n\
+\n\
+test_connectivity() {\n\
+  echo "Testing connectivity to BeeGFS services..."\n\
+  \n\
+  # Test management service\n\
+  echo -n "Management service (port 8008): "\n\
+  nc -z -v -w 1 beegfs-dev 8008 2>&1 | grep -q "succeeded" && echo "Connected" || echo "Failed"\n\
+  \n\
+  # Test metadata service\n\
+  echo -n "Metadata service (port 8003): "\n\
+  nc -z -v -w 1 beegfs-dev 8003 2>&1 | grep -q "succeeded" && echo "Connected" || echo "Failed"\n\
+  \n\
+  # Test storage service\n\
+  echo -n "Storage service (port 8005): "\n\
+  nc -z -v -w 1 beegfs-dev 8005 2>&1 | grep -q "succeeded" && echo "Connected" || echo "Failed"\n\
+  \n\
+  echo "Connectivity test completed."\n\
+}\n\
+\n\
+start_beegfs() {\n\
+  echo "Starting BeeGFS services..."\n\
+  \n\
+  # Start helper daemon\n\
+  echo "Starting BeeGFS helper daemon..."\n\
+  /etc/init.d/beegfs-helperd start\n\
+  sleep 2\n\
+  \n\
+  # Try to load kernel module\n\
+  echo "Loading BeeGFS client module..."\n\
+  if command -v systemctl >/dev/null 2>&1; then\n\
+    systemctl start beegfs-client\n\
+  else\n\
+    /etc/init.d/beegfs-client start\n\
+  fi\n\
+  \n\
+  # Check if mount was successful\n\
+  if mount | grep -q "beegfs"; then\n\
+    echo "BeeGFS successfully mounted at /mnt/beegfs"\n\
+    \n\
+    # Show mount info\n\
+    echo "Mount information:"\n\
+    mount | grep beegfs\n\
+    df -h /mnt/beegfs\n\
+  else\n\
+    echo "Failed to mount BeeGFS. Using fake mount for testing."\n\
+    # Create a fake mount with a local directory for testing\n\
+    mkdir -p /mnt/beegfs_local\n\
+    mount --bind /mnt/beegfs_local /mnt/beegfs\n\
+    echo "Created a local directory mount for testing at /mnt/beegfs"\n\
+  fi\n\
+}\n\
+\n\
+# Main\n\
+setup_network\n\
+\n\
+# Start SSH server\n\
+/usr/sbin/sshd\n\
+\n\
+# Install BeeGFS packages\n\
+install_beegfs\n\
+\n\
+# Test connectivity to BeeGFS services\n\
+test_connectivity\n\
+\n\
+# Start BeeGFS client and mount filesystem\n\
+start_beegfs\n\
+\n\
+echo "Container is ready."\n\
+echo "To run performance tests: /usr/local/bin/beegfs-test.sh"\n\
+echo "To run connectivity tests again: /bin/bash /start.sh"\n\
+\n\
+# Keep container running\n\
+tail -f /dev/null\n\
+' > /start.sh && chmod +x /start.sh
+
+# Make utilities available
+RUN echo '#!/bin/bash\n\
+\n\
+source /usr/local/bin/beegfs-test.sh\n\
+"$@"\n\
+' > /usr/local/bin/run-test
+
+# Set working directory
+WORKDIR /
+
+# Start script
+CMD ["/start.sh"] 

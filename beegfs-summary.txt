@@ -1,0 +1,19 @@
+BeeGFS Server and Client Configuration Summary:
+=================================================
+
+1. Server (beegfs-dev):
+   - Management service: Port 8008 (TCP/UDP)
+   - Metadata service: Port 8003 (TCP/UDP)
+   - Storage service: Port 8005 (TCP/UDP)
+
+2. Client:
+   - All services are reachable from client container
+   - Client container is on same Docker network as server
+
+3. Issues solved:
+   - Network connectivity fixed by connecting containers to same Docker network
+   - Identified correct storage service port (8005 not 8004)
+
+4. Next steps:
+   - For full client functionality, consider using official BeeGFS client packages
+   - Alternatively, modify client Dockerfile to build kernel module with proper C/C++ support

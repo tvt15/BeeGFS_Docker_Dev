@@ -1,172 +1,289 @@
-# BeeGFS Development Environment
+# BeeGFS Development Guide
 
-This guide explains how to use the Docker-based development environment for BeeGFS.
+This document provides information for developers working with the BeeGFS Docker development environment.
 
-## Overview
+## Development Environment
 
-The development environment consists of Docker containers that:
-1. Mount the BeeGFS source code from your host machine
-2. Build the code within the container
-3. Run various BeeGFS services
-4. Allow you to edit the code on your host and quickly test changes
-
-## Prerequisites
-
-- Docker
-- Docker Compose
-- Git (for BeeGFS source code)
+The Docker setup in this repository provides a complete environment for developing, testing, and debugging BeeGFS components without affecting your host system.
 
 ## Getting Started
 
-### Option 1: All-in-One Container
+### Prerequisites
 
-This option runs a single container with all BeeGFS components:
+- Docker and Docker Compose installed
+- Git
+- Basic understanding of BeeGFS architecture
+- At least 4GB RAM and 10GB disk space available
 
-```bash
-# Build and start the development container
-docker-compose up -d beegfs-dev
+### Setting Up the Development Environment
 
-# SSH into the container (password: beegfs)
-ssh -p 2222 root@localhost
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/beegfs-docker.git
+   cd beegfs-docker
+   ```
 
-# Inside the container, build BeeGFS
-cd /beegfs
-make -j$(nproc)
+2. **Start the development environment**:
+   ```bash
+   ./beegfs-dev.sh start
+   ```
 
-# Start all BeeGFS services
-/beegfs/mgmtd/build/beegfs-mgmtd -f -s /beegfs_conf/beegfs-mgmtd.conf &
-sleep 2
-/beegfs/meta/build/beegfs-meta -f -s /beegfs_conf/beegfs-meta.conf &
-sleep 2
-/beegfs/storage/build/beegfs-storage -f -s /beegfs_conf/beegfs-storage.conf &
-sleep 2
-/beegfs/helperd/build/beegfs-helperd -f -s /beegfs_conf/beegfs-helperd.conf &
-```
-
-### Option 2: Multi-Container Setup
-
-This option runs each BeeGFS service in a separate container:
-
-```bash
-# Start all containers
-docker-compose up -d
-
-# Only build the code (no services started)
-docker-compose up -d beegfs-dev
-
-# Start specific services
-docker-compose up -d beegfs-mgmtd beegfs-meta
-```
+3. **Access the development shell**:
+   ```bash
+   ./beegfs-dev.sh shell
+   ```
 
 ## Development Workflow
 
-1. Edit the BeeGFS source code on your host machine
-2. Rebuild the specific component you're working on (inside the container):
+### Building Components
+
+To build specific BeeGFS components:
+
+```bash
+# Build all components
+./beegfs-dev.sh build
+
+# Build specific component (mgmtd, meta, storage, helperd, utils, client)
+./beegfs-dev.sh build meta
+```
+
+### Making Code Changes
+
+1. The source code is mounted from your host into the container, so you can edit files using your preferred editor on the host.
+
+2. After making changes, rebuild the affected component:
    ```bash
-   cd /beegfs
-   make mgmtd-all  # For management daemon
-   make meta-all   # For metadata service
-   make storage-all # For storage service
-   # etc.
+   ./beegfs-dev.sh build <component>
    ```
-3. Restart the specific service to test your changes
-4. Debug issues using the tools provided in the container (gdb, valgrind, etc.)
 
-## Common Tasks
+3. Restart the service to apply changes:
+   ```bash
+   ./beegfs-dev.sh restart <service>
+   ```
 
-### Building Specific Components
+### Testing Changes
 
-Inside the container:
-```bash
-# Build a specific component
-cd /beegfs
-make mgmtd-all    # Management daemon
-make meta-all     # Metadata service
-make storage-all  # Storage service
-make helperd-all  # Helper daemon
-make utils        # Utilities (ctl, fsck, etc.)
-make client       # Client module (kernel module)
-```
+1. **Basic functionality testing**:
+   - Start the client container:
+     ```bash
+     ./start-client.sh
+     ```
+   - Verify the mount:
+     ```bash
+     sudo ls /tmp/beegfs_client_mount
+     ```
+   - Create and manipulate files:
+     ```bash
+     sudo touch /tmp/beegfs_client_mount/test.txt
+     ```
 
-### Running Services Manually
+2. **Performance testing**:
+   ```bash
+   ./beegfs-performance-test.sh --all
+   ```
 
-Inside the container:
-```bash
-# Management daemon
-/beegfs/mgmtd/build/beegfs-mgmtd -f -s /beegfs_conf/beegfs-mgmtd.conf
+3. **Quick benchmarking**:
+   ```bash
+   ./quick-beegfs-benchmark.sh
+   ```
 
-# Metadata service
-/beegfs/meta/build/beegfs-meta -f -s /beegfs_conf/beegfs-meta.conf
+## Debugging
 
-# Storage service
-/beegfs/storage/build/beegfs-storage -f -s /beegfs_conf/beegfs-storage.conf
-
-# Helper daemon
-/beegfs/helperd/build/beegfs-helperd -f -s /beegfs_conf/beegfs-helperd.conf
-```
-
-### Using beegfs-ctl
-
-Inside the container:
-```bash
-# Check the file system status
-/beegfs/ctl/build/beegfs-ctl --listnodes --nodetype=meta
-/beegfs/ctl/build/beegfs-ctl --listnodes --nodetype=storage
-
-# Check file system state
-/beegfs/ctl/build/beegfs-ctl --getentryinfo /mnt/beegfs
-
-# More beegfs-ctl commands
-/beegfs/ctl/build/beegfs-ctl --help
-```
-
-### Debugging with GDB
+### Checking Logs
 
 ```bash
-# Debug the management daemon
-gdb --args /beegfs/mgmtd/build/beegfs-mgmtd -f -s /beegfs_conf/beegfs-mgmtd.conf
+# View logs for a specific service
+./beegfs-dev.sh logs mgmtd
+./beegfs-dev.sh logs meta
+./beegfs-dev.sh logs storage
+
+# View client logs
+sudo docker logs beegfs-client
 ```
 
-### Profile with Valgrind
+### Using GDB
+
+For debugging with GDB inside the container:
+
+1. Access the development shell:
+   ```bash
+   ./beegfs-dev.sh shell
+   ```
+
+2. Find the process ID:
+   ```bash
+   ps aux | grep beegfs
+   ```
+
+3. Attach GDB:
+   ```bash
+   gdb attach <pid>
+   ```
+
+### Using Valgrind
+
+For memory leak detection and profiling:
+
+1. Access the development shell:
+   ```bash
+   ./beegfs-dev.sh shell
+   ```
+
+2. Run a component with Valgrind:
+   ```bash
+   valgrind --leak-check=full /beegfs/mgmtd/build/beegfs-mgmtd -f -s /beegfs_conf/beegfs-mgmtd.conf
+   ```
+
+## Advanced Development
+
+### Creating Custom Configuration
+
+1. Create custom configuration files:
+   ```bash
+   sudo docker exec -it beegfs-dev bash
+   vi /beegfs_conf/beegfs-mgmtd.conf
+   vi /beegfs_conf/beegfs-meta.conf
+   vi /beegfs_conf/beegfs-storage.conf
+   ```
+
+2. Restart services to apply new configuration:
+   ```bash
+   ./beegfs-dev.sh restart mgmtd
+   ./beegfs-dev.sh restart meta
+   ./beegfs-dev.sh restart storage
+   ```
+
+### Building Packages
+
+To create release packages:
 
 ```bash
-# Profile the metadata service
-valgrind --leak-check=full /beegfs/meta/build/beegfs-meta -f -s /beegfs_conf/beegfs-meta.conf
+# Create DEB packages
+./beegfs-dev.sh package deb
+
+# Create RPM packages
+./beegfs-dev.sh package rpm
 ```
 
-## Container File Structure
+## Testing Client Features
 
-- `/beegfs` - Mounted BeeGFS source code from host
-- `/beegfs_conf` - Configuration files for BeeGFS services
-- `/data` - Data directories for BeeGFS storage targets
+To test client features:
 
-## Customizing Configuration
+1. Start the client container:
+   ```bash
+   ./start-client.sh
+   ```
 
-Edit the configuration files in the `/beegfs_conf` directory inside the container to customize BeeGFS behavior.
+2. Access the client shell:
+   ```bash
+   sudo docker exec -it beegfs-client bash
+   ```
 
-## Testing Changes
+3. Test file operations:
+   ```bash
+   cd /mnt/beegfs
+   dd if=/dev/urandom of=testfile bs=1M count=100
+   ```
 
-1. Make code changes on your host
-2. Rebuild inside the container (`make component-all`)
-3. Restart the service to test your changes
+4. For performance testing:
+   ```bash
+   source /usr/local/bin/beegfs-test.sh
+   run_io_tests /mnt/beegfs 1G "Test"
+   ```
 
-## Packaging
+## Network Configuration and Troubleshooting
 
-To create distribution packages:
+The BeeGFS services communicate over a dedicated Docker network. If you encounter connectivity issues:
 
-```bash
-# Inside the container
-cd /beegfs
+1. Check network configuration:
+   ```bash
+   sudo docker network inspect beegfs-net
+   ```
 
-# For DEB packages (Ubuntu/Debian)
-make package-deb PACKAGE_DIR=/tmp/beegfs-packages
+2. Verify container IP addresses:
+   ```bash
+   sudo docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' beegfs-dev beegfs-client
+   ```
 
-# For RPM packages (CentOS/RHEL)
-make package-rpm PACKAGE_DIR=/tmp/beegfs-packages
-```
+3. Test connectivity:
+   ```bash
+   sudo docker exec beegfs-client ping -c 2 beegfs-dev
+   ```
 
-## Troubleshooting
+## Extending the Environment
 
-- Check the logs of running services with `docker logs container_name`
-- SSH into containers for debugging: `ssh -p 2222 root@localhost` (password: beegfs)
-- If services fail to start, check if the ports are already in use on your host machine 
+### Adding Custom Test Scripts
+
+1. Create your test script in the repository root.
+
+2. Make it executable:
+   ```bash
+   chmod +x your-test-script.sh
+   ```
+
+3. For client tests, you can make them available inside the client container:
+   ```bash
+   sudo docker cp your-test-script.sh beegfs-client:/usr/local/bin/
+   ```
+
+### Modifying Client Container
+
+If you need to modify the client container:
+
+1. Edit `Dockerfile.client` to include additional tools or configuration.
+
+2. Rebuild and restart the client:
+   ```bash
+   sudo docker stop beegfs-client
+   sudo docker rm beegfs-client
+   ./start-client.sh
+   ```
+
+## Best Practices
+
+1. **Version Control**: Keep track of changes to configuration files and test scripts.
+
+2. **Reproducible Tests**: Document test parameters and environment setup.
+
+3. **Performance Baselines**: Establish baseline performance metrics with `beegfs-performance-test.sh` before making changes.
+
+4. **Incremental Testing**: Test one component at a time to isolate issues.
+
+5. **Cleanup**: Use `./beegfs-dev.sh stop` to clean up containers when finished.
+
+## Common Issues and Solutions
+
+### Client Can't Mount BeeGFS
+
+1. Check if all services are running:
+   ```bash
+   ./beegfs-dev.sh status
+   ```
+
+2. Verify connectivity:
+   ```bash
+   sudo docker exec beegfs-client ping -c 2 beegfs-dev
+   ```
+
+3. Check service ports:
+   ```bash
+   sudo docker exec beegfs-dev netstat -tuln | grep -E '8008|8003|8005'
+   ```
+
+### Performance Issues
+
+1. Check system resources:
+   ```bash
+   sudo docker exec beegfs-client bash -c 'source /usr/local/bin/beegfs-test.sh && collect_stats'
+   ```
+
+2. Verify there are no network bottlenecks:
+   ```bash
+   sudo docker exec beegfs-client iperf3 -c beegfs-dev
+   ```
+
+## References
+
+- [BeeGFS Documentation](https://doc.beegfs.io/latest/)
+- [BeeGFS GitHub Repository](https://github.com/ThinkParQ/beegfs)
+- [Docker Documentation](https://docs.docker.com/) 
