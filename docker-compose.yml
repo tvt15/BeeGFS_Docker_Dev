@@ -14,10 +14,6 @@ services:
       - beegfs-conf:/beegfs_conf:rw
       - beegfs-data:/data:rw
     ports:
-      - "28008:8008"  # Management service
-      - "28003:8003"  # Metadata service
-      - "28004:8004"  # Storage service
-      - "28006:8006"  # Helper daemon  
       - "2222:22"    # SSH access
     environment:
       - BUILD_ON_START=true
