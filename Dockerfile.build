@@ -46,6 +46,7 @@ COPY . .
 RUN rm -rf thirdparty/source/gtest && \
     mv thirdparty/source/gtest-1.8.0 thirdparty/source/gtest
 
+# Ensure we use the correct boost version
 RUN rm -rf thirdparty/source/boost && \
     mv thirdparty/source/boost_1_61_0 thirdparty/source/boost
 
@@ -54,7 +55,6 @@ RUN mkdir -p build && \
     cd build && \
     cmake .. -DBEEGFS_VERSION=7.3.2 && \
     make -j$(nproc) BEEGFS_SKIP_CLIENT_BUILD=1
-# RUN make
 
 # Create necessary directories
 RUN mkdir -p /data/mgmt_tgt_mgmt01 \
@@ -64,6 +64,15 @@ RUN mkdir -p /data/mgmt_tgt_mgmt01 \
     /etc/beegfs \
     /var/lib/beegfs \
     /var/log/beegfs
+
+# Copy built binaries and setup tools to system paths
+RUN cp /beegfs/build/mgmtd/beegfs-mgmtd /usr/sbin/ && \
+    cp /beegfs/build/meta/beegfs-meta /usr/sbin/ && \
+    cp /beegfs/build/storage/beegfs-storage /usr/sbin/ && \
+    cp /beegfs/mgmtd/build/dist/sbin/beegfs-setup-mgmtd /usr/sbin/ && \
+    cp /beegfs/meta/build/dist/sbin/beegfs-setup-meta /usr/sbin/ && \
+    cp /beegfs/storage/build/dist/sbin/beegfs-setup-storage /usr/sbin/ && \
+    chmod +x /usr/sbin/beegfs-*
 
 # Set default command
 CMD ["/bin/bash"] 
