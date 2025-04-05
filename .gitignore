@@ -54,3 +54,8 @@ install_manifest.txt
 
 # Logs
 *.log 
+
+# Cursor directory
+.cursor/
+
+
