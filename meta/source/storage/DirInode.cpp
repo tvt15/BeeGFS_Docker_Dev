@@ -81,12 +81,25 @@ StripePattern* DirInode::createFileStripePatternUnlocked(const UInt16List* prefe
    if (!loadSuccess)
       return NULL;
 
-   if(!chunksize)
+   // Validate and adjust chunk size
+   if (!chunksize)
       chunksize = stripePattern->getChunkSize(); // use default dir chunksize
-   else
-   if(unlikely( (chunksize < STRIPEPATTERN_MIN_CHUNKSIZE) ||
-                !MathTk::isPowerOfTwo(chunksize) ) )
-      return NULL; // invalid chunksize given
+
+   // Ensure chunk size meets minimum requirements and is power of two
+   if (unlikely((chunksize < STRIPEPATTERN_MIN_CHUNKSIZE) ||
+                !MathTk::isPowerOfTwo(chunksize)))
+   {
+      if (cfg->getTuneAdaptiveChunkSizing())
+      {
+         // If adaptive sizing is enabled, adjust to nearest valid size
+         if (chunksize < STRIPEPATTERN_MIN_CHUNKSIZE)
+            chunksize = STRIPEPATTERN_MIN_CHUNKSIZE;
+         else
+            chunksize = MathTk::roundToPowerOfTwo(chunksize);
+      }
+      else
+         return NULL; // invalid chunksize given and no adaptive sizing
+   }
 
    StripePattern* filePattern;
 
@@ -100,13 +113,11 @@ StripePattern* DirInode::createFileStripePatternUnlocked(const UInt16List* prefe
    if (desiredNumTargets < minNumRequiredTargets)
       desiredNumTargets = minNumRequiredTargets;
 
-   // limit maximum number of targets per file to a safe value (such that serialized stripe patterns
-   // are bounded in size)
+   // limit maximum number of targets per file to a safe value
    if(desiredNumTargets > DIRINODE_MAX_STRIPE_TARGETS)
       desiredNumTargets = DIRINODE_MAX_STRIPE_TARGETS;
 
-   // get the storage pool, which is set to later restrict targets to those contained in the pool
-   // note: storage pool is used from the parent dir, if not set explicitely
+   // get the storage pool
    if (storagePoolId == StoragePoolStore::INVALID_POOL_ID)
       storagePoolId = stripePattern->getStoragePoolId();
 
@@ -418,7 +429,7 @@ FhgfsOpsErr DirInode::makeDirEntryUnlocked(DirEntry* entry)
    FhgfsOpsErr mkRes = FhgfsOpsErr_INTERNAL;
 
    DirEntryType entryType = entry->getEntryType();
-   if (unlikely( (!DirEntryType_ISFILE(entryType) && (!DirEntryType_ISDIR(entryType) ) ) ) )
+   if (unlikely( (!DirEntryType_ISFILE(entryType) && (!DirEntryType_ISDIR(entryType) ) ) )
       goto out;
 
    // load DirInode on demand if required, we need it now

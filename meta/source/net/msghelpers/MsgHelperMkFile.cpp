@@ -1,6 +1,7 @@
 #include <common/toolkit/MessagingTk.h>
 #include <components/ModificationEventFlusher.h>
 #include <program/Program.h>
+#include <storage/ChunkSizeSelector.h>
 #include "MsgHelperMkFile.h"
 
 /*
@@ -8,7 +9,7 @@
  * if this is the secondary buddy of a mirror group
  */
 FhgfsOpsErr MsgHelperMkFile::mkFile(DirInode& parentDir, MkFileDetails* mkDetails,
-   const UInt16List* preferredTargets, const unsigned numtargets, const unsigned chunksize, 
+   const UInt16List* preferredTargets, const unsigned numtargets, const unsigned chunksize,
    StripePattern* stripePattern, EntryInfo* outEntryInfo, FileInodeStoreData* outInodeData,
    StoragePoolId storagePoolId)
 {
@@ -18,12 +19,23 @@ FhgfsOpsErr MsgHelperMkFile::mkFile(DirInode& parentDir, MkFileDetails* mkDetail
    MetaStore* metaStore = app->getMetaStore();
    ModificationEventFlusher* modEventFlusher = app->getModificationEventFlusher();
    bool modEventLoggingEnabled = modEventFlusher->isLoggingEnabled();
+   Config* cfg = app->getConfig();
+
+   // If adaptive chunk sizing is enabled and no specific chunk size was requested,
+   // determine the optimal chunk size based on file type/name
+   unsigned effectiveChunkSize = chunksize;
+   if (cfg->getTuneAdaptiveChunkSizing() && chunksize == 0)
+   {
+      uint64_t estimatedSize = ChunkSizeSelector::estimateFileSize(
+         mkDetails->newName, parentDir.getID());
+      effectiveChunkSize = ChunkSizeSelector::determineOptimalChunkSize(estimatedSize, cfg);
+   }
 
    FhgfsOpsErr retVal;
 
    // create new stripe pattern
    if ( !stripePattern )
-      stripePattern = parentDir.createFileStripePattern(preferredTargets, numtargets, chunksize,
+      stripePattern = parentDir.createFileStripePattern(preferredTargets, numtargets, effectiveChunkSize,
          storagePoolId);
 
    // check availability of stripe targets

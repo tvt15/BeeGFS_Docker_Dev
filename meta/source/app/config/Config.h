@@ -69,6 +69,16 @@ class Config : public AbstractConfig
       bool              quotaEarlyChownResponse; // true to send response before chunk files chown
       bool              quotaEnableEnforcement;
 
+      // Adaptive chunk sizing parameters
+      bool              tuneAdaptiveChunkSizing;
+      uint64_t          tuneAdaptiveChunkSizeSmall;
+      uint64_t          tuneAdaptiveChunkSizeMedium;
+      uint64_t          tuneAdaptiveChunkSizeLarge;
+      uint64_t          tuneAdaptiveChunkSizeVeryLarge;
+      uint64_t          tuneAdaptiveChunkSizeThresholdSmall;
+      uint64_t          tuneAdaptiveChunkSizeThresholdMedium;
+      uint64_t          tuneAdaptiveChunkSizeThresholdLarge;
+
       unsigned          sysTargetOfflineTimeoutSecs;
       bool              sysAllowUserSetPattern;
 
@@ -287,6 +297,47 @@ class Config : public AbstractConfig
       void setLimitXAttrListLength(bool value) { limitXAttrListLength = value; }
 
       const std::string& getFileEventLogTarget() const { return sysFileEventLogTarget; }
+
+      // Adaptive chunk sizing getters
+      bool getTuneAdaptiveChunkSizing() const
+      {
+         return tuneAdaptiveChunkSizing;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeSmall() const
+      {
+         return tuneAdaptiveChunkSizeSmall;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeMedium() const
+      {
+         return tuneAdaptiveChunkSizeMedium;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeLarge() const
+      {
+         return tuneAdaptiveChunkSizeLarge;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeVeryLarge() const
+      {
+         return tuneAdaptiveChunkSizeVeryLarge;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeThresholdSmall() const
+      {
+         return tuneAdaptiveChunkSizeThresholdSmall;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeThresholdMedium() const
+      {
+         return tuneAdaptiveChunkSizeThresholdMedium;
+      }
+
+      uint64_t getTuneAdaptiveChunkSizeThresholdLarge() const
+      {
+         return tuneAdaptiveChunkSizeThresholdLarge;
+      }
 };
 
 #endif /*CONFIG_H_*/

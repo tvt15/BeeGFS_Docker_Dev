@@ -87,6 +87,16 @@ void Config::loadDefaults(bool addDashes)
    configMapRedefine("runDaemonized",              "false");
 
    configMapRedefine("pidFile",                    "");
+
+   // Adaptive chunk sizing defaults
+   configMapRedefine("tuneAdaptiveChunkSizing",            "false");
+   configMapRedefine("tuneAdaptiveChunkSizeSmall",         "64k");
+   configMapRedefine("tuneAdaptiveChunkSizeMedium",        "512k");
+   configMapRedefine("tuneAdaptiveChunkSizeLarge",         "2m");
+   configMapRedefine("tuneAdaptiveChunkSizeVeryLarge",     "8m");
+   configMapRedefine("tuneAdaptiveChunkSizeThresholdSmall", "1m");
+   configMapRedefine("tuneAdaptiveChunkSizeThresholdMedium", "100m");
+   configMapRedefine("tuneAdaptiveChunkSizeThresholdLarge",  "1g");
 }
 
 /**
@@ -210,6 +220,22 @@ void Config::applyConfigMap(bool enableException, bool addDashes)
          runDaemonized = StringTk::strToBool(iter->second);
       else if (iter->first == std::string("pidFile"))
          pidFile = iter->second;
+      else if (iter->first == std::string("tuneAdaptiveChunkSizing"))
+         tuneAdaptiveChunkSizing = StringTk::strToBool(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeSmall"))
+         tuneAdaptiveChunkSizeSmall = UnitTk::strHumanToInt64(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeMedium"))
+         tuneAdaptiveChunkSizeMedium = UnitTk::strHumanToInt64(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeLarge"))
+         tuneAdaptiveChunkSizeLarge = UnitTk::strHumanToInt64(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeVeryLarge"))
+         tuneAdaptiveChunkSizeVeryLarge = UnitTk::strHumanToInt64(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeThresholdSmall"))
+         tuneAdaptiveChunkSizeThresholdSmall = UnitTk::strHumanToInt64(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeThresholdMedium"))
+         tuneAdaptiveChunkSizeThresholdMedium = UnitTk::strHumanToInt64(iter->second);
+      else if (iter->first == std::string("tuneAdaptiveChunkSizeThresholdLarge"))
+         tuneAdaptiveChunkSizeThresholdLarge = UnitTk::strHumanToInt64(iter->second);
       else
       {
          // unknown element occurred

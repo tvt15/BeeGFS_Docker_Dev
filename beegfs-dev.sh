@@ -33,31 +33,31 @@ function show_help {
 
 function start_environment {
     echo "Starting BeeGFS development environment..."
-    sudo docker-compose up -d
+    docker-compose up -d
 }
 
 function stop_environment {
     echo "Stopping BeeGFS development environment..."
-    sudo docker-compose down
+    docker-compose down
 }
 
 function build_component {
     if [ -z "$1" ]; then
         echo "Building all BeeGFS components..."
-        sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make -j\$(nproc)"
+        docker exec -it beegfs-dev bash -c "cd /beegfs && make -j\$(nproc)"
     else
         case "$1" in
             mgmtd|meta|storage|helperd)
                 echo "Building BeeGFS $1 component..."
-                sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make $1-all"
+                docker exec -it beegfs-dev bash -c "cd /beegfs && make $1-all"
                 ;;
             utils)
                 echo "Building BeeGFS utilities..."
-                sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make utils"
+                docker exec -it beegfs-dev bash -c "cd /beegfs && make utils"
                 ;;
             client)
                 echo "Building BeeGFS client module..."
-                sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make client"
+                docker exec -it beegfs-dev bash -c "cd /beegfs && make client"
                 ;;
             *)
                 echo "Unknown component: $1"
@@ -70,7 +70,7 @@ function build_component {
 
 function run_tests {
     echo "Running BeeGFS tests..."
-    sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make test"
+    docker exec -it beegfs-dev bash -c "cd /beegfs && make test"
 }
 
 function restart_service {
@@ -82,7 +82,7 @@ function restart_service {
     case "$1" in
         mgmtd|meta|storage|helperd)
             echo "Restarting BeeGFS $1 service..."
-            sudo docker restart "beegfs-$1"
+            docker restart "beegfs-$1"
             ;;
         *)
             echo "Unknown service: $1"
@@ -101,7 +101,7 @@ function show_logs {
     case "$1" in
         mgmtd|meta|storage|helperd|dev)
             echo "Showing logs for BeeGFS $1 service..."
-            sudo docker logs "beegfs-$1" -f
+            docker logs "beegfs-$1" -f
             ;;
         *)
             echo "Unknown service: $1"
@@ -113,20 +113,20 @@ function show_logs {
 
 function get_shell {
     echo "Getting shell in BeeGFS development container..."
-    sudo docker exec -it beegfs-dev bash
+    docker exec -it beegfs-dev bash
 }
 
 function check_status {
     echo "Checking status of BeeGFS services..."
-    sudo docker-compose ps
+    docker-compose ps
     
     echo ""
     echo "Checking service status inside container..."
-    sudo docker exec -it beegfs-dev bash -c "ps aux | grep beegfs | grep -v grep || echo 'No BeeGFS services running'"
+    docker exec -it beegfs-dev bash -c "ps aux | grep beegfs | grep -v grep || echo 'No BeeGFS services running'"
     
     echo ""
     echo "Checking connectivity..."
-    sudo docker exec -it beegfs-dev bash -c "if [ -f /beegfs/ctl/build/beegfs-ctl ]; then /beegfs/ctl/build/beegfs-ctl --listnodes --nodetype=all 2>/dev/null || echo 'BeeGFS services not responding'; else echo 'beegfs-ctl not built yet'; fi"
+    docker exec -it beegfs-dev bash -c "if [ -f /beegfs/ctl/build/beegfs-ctl ]; then /beegfs/ctl/build/beegfs-ctl --listnodes --nodetype=all 2>/dev/null || echo 'BeeGFS services not responding'; else echo 'beegfs-ctl not built yet'; fi"
 }
 
 function create_packages {
@@ -138,11 +138,11 @@ function create_packages {
     case "$1" in
         deb)
             echo "Creating DEB packages..."
-            sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make package-deb PACKAGE_DIR=/tmp/beegfs-packages"
+            docker exec -it beegfs-dev bash -c "cd /beegfs && make package-deb PACKAGE_DIR=/tmp/beegfs-packages"
             ;;
         rpm)
             echo "Creating RPM packages..."
-            sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make package-rpm PACKAGE_DIR=/tmp/beegfs-packages"
+            docker exec -it beegfs-dev bash -c "cd /beegfs && make package-rpm PACKAGE_DIR=/tmp/beegfs-packages"
             ;;
         *)
             echo "Unknown package type: $1"
@@ -157,7 +157,7 @@ function create_packages {
 
 function clean_build {
     echo "Cleaning BeeGFS build files..."
-    sudo docker exec -it beegfs-dev bash -c "cd /beegfs && make clean"
+    docker exec -it beegfs-dev bash -c "cd /beegfs && make clean"
 }
 
 # Main script logic
