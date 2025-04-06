@@ -85,20 +85,16 @@ StripePattern* DirInode::createFileStripePatternUnlocked(const UInt16List* prefe
    if (!chunksize)
       chunksize = stripePattern->getChunkSize(); // use default dir chunksize
 
-   // Ensure chunk size meets minimum requirements and is power of two
-   if (unlikely((chunksize < STRIPEPATTERN_MIN_CHUNKSIZE) ||
-                !MathTk::isPowerOfTwo(chunksize)))
+   // Round chunk size to next power of 2 using bit manipulation
+   if(chunksize)
    {
-      if (cfg->getTuneAdaptiveChunkSizing())
-      {
-         // If adaptive sizing is enabled, adjust to nearest valid size
-         if (chunksize < STRIPEPATTERN_MIN_CHUNKSIZE)
-            chunksize = STRIPEPATTERN_MIN_CHUNKSIZE;
-         else
-            chunksize = MathTk::roundToPowerOfTwo(chunksize);
-      }
-      else
-         return NULL; // invalid chunksize given and no adaptive sizing
+      chunksize--;
+      chunksize |= chunksize >> 1;
+      chunksize |= chunksize >> 2;
+      chunksize |= chunksize >> 4;
+      chunksize |= chunksize >> 8;
+      chunksize |= chunksize >> 16;
+      chunksize++;
    }
 
    StripePattern* filePattern;
@@ -426,48 +422,32 @@ FhgfsOpsErr DirInode::makeDirEntry(DirEntry& entry)
 
 FhgfsOpsErr DirInode::makeDirEntryUnlocked(DirEntry* entry)
 {
-   FhgfsOpsErr mkRes = FhgfsOpsErr_INTERNAL;
-
    DirEntryType entryType = entry->getEntryType();
-   if (unlikely( (!DirEntryType_ISFILE(entryType) && (!DirEntryType_ISDIR(entryType) ) ) )
-      goto out;
+   FhgfsOpsErr mkRes;
 
-   // load DirInode on demand if required, we need it now
-   if (!loadIfNotLoadedUnlocked())
-   {
-      mkRes = FhgfsOpsErr_PATHNOTEXISTS;
-      goto out;
-   }
+   // Sanity check: make sure we have either a file or a directory
+   if(unlikely(!DirEntryType_ISFILE(entryType) && !DirEntryType_ISDIR(entryType)))
+      return FhgfsOpsErr_INTERNAL;
 
+   if(!loadIfNotLoadedUnlocked())
+      return FhgfsOpsErr_INTERNAL;
+
+   // Check if the entry already exists
+   bool entryExists = this->entries.exists(entry->getName());
+   if(entryExists)
+      return FhgfsOpsErr_EXISTS;
+
+   // Create the new entry
    mkRes = this->entries.makeEntry(entry);
-   if(mkRes == FhgfsOpsErr_SUCCESS)
-   { // entry successfully created
 
-      if (DirEntryType_ISDIR(entryType) )
-      {
-         // update our own dirInode
-         increaseNumSubDirsAndStoreOnDisk();
-      }
-      else
-      {
-         // update our own dirInode
-         increaseNumFilesAndStoreOnDisk();
-      }
+   if(mkRes != FhgfsOpsErr_SUCCESS)
+      return mkRes;
 
-   }
+   // Update metadata on disk
+   if(!storeUpdatedMetaDataUnlocked())
+      return FhgfsOpsErr_INTERNAL;
 
-   if (getIsBuddyMirrored())
-   {
-      if (auto* resync = BuddyResyncer::getSyncChangeset())
-      {
-         const Path* inodePath = Program::getApp()->getBuddyMirrorInodesPath();
-         std::string inodeFilename = MetaStorageTk::getMetaInodePath(inodePath->str(), id);
-         resync->addModification(inodeFilename, MetaSyncFileType::Inode);
-      }
-   }
-
-out:
-   return mkRes;
+   return FhgfsOpsErr_SUCCESS;
 }
 
 FhgfsOpsErr DirInode::linkFilesInDirUnlocked(const std::string& fromName, FileInode& fromInode,

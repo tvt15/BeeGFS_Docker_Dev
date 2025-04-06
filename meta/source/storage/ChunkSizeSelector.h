@@ -4,6 +4,7 @@
 #include <common/Common.h>
 #include <common/toolkit/MathTk.h>
 #include <common/toolkit/StringTk.h>
+#include <common/toolkit/UnitTk.h>
 #include <app/config/Config.h>
 #include <program/Program.h>
 #include <storage/MetaStore.h>
@@ -77,44 +78,37 @@ class ChunkSizeSelector
       ChunkSizeSelector() {} // Static class - prevent instantiation
 
       /**
+       * Extract file extension from filename.
+       */
+      static std::string extractFileExtension(const std::string& fileName)
+      {
+         size_t dotPos = fileName.find_last_of('.');
+         if (dotPos == std::string::npos || dotPos == 0 || dotPos == fileName.length() - 1)
+            return "";
+         
+         return fileName.substr(dotPos + 1);
+      }
+
+      /**
        * Estimates file size based on file extension.
        */
       static uint64_t estimateFromExtension(const std::string& fileName)
       {
-         // Default to medium size if no extension found
-         uint64_t defaultSize = 100 * 1024 * 1024; // 100MB
+         std::string extension = extractFileExtension(fileName);
+         if(extension.empty())
+            return 0;
 
-         // Extract file extension
-         size_t dotPos = fileName.find_last_of('.');
-         if (dotPos == std::string::npos)
-            return defaultSize;
+         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
-         std::string extension = fileName.substr(dotPos + 1);
-         StringTk::strToLower(extension); // Convert to lowercase for comparison
+         // Default sizes for common file types
+         if(extension == "txt" || extension == "log")
+            return 1ULL * 1024 * 1024; // 1MB
+         if(extension == "mp3" || extension == "wav")
+            return 10ULL * 1024 * 1024; // 10MB
+         if(extension == "mp4" || extension == "mkv")
+            return 1ULL * 1024 * 1024 * 1024; // 1GB
          
-         // Estimate based on common file extensions
-         if (extension == "txt" || extension == "log" || extension == "conf" || 
-             extension == "json" || extension == "xml" || extension == "ini" ||
-             extension == "yaml" || extension == "yml" || extension == "md")
-            return 64 * 1024; // 64KB - small text files
-
-         else if (extension == "mp3" || extension == "pdf" || extension == "docx" ||
-                 extension == "xlsx" || extension == "pptx" || extension == "odt" ||
-                 extension == "jpg" || extension == "jpeg" || extension == "png")
-            return 10 * 1024 * 1024; // 10MB - medium files
-
-         else if (extension == "mp4" || extension == "mkv" || extension == "iso" ||
-                 extension == "vmdk" || extension == "vdi" || extension == "qcow2" ||
-                 extension == "avi" || extension == "mov")
-            return 2 * 1024 * 1024 * 1024ULL; // 2GB - large files
-
-         else if (extension == "tar" || extension == "gz" || extension == "zip" ||
-                 extension == "7z" || extension == "rar" || extension == "bz2" ||
-                 extension == "xz" || extension == "tgz")
-            return 500 * 1024 * 1024; // 500MB - medium-large files
-
-         // If no specific match, return default size
-         return defaultSize;
+         return 0; // Unknown extension
       }
 
       /**
@@ -138,31 +132,17 @@ class ChunkSizeSelector
 
          // Convert path to lowercase for case-insensitive matching
          std::string lowerPath = dirPath;
-         StringTk::strToLower(lowerPath);
+         std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
 
-         // Check for common directory name patterns that suggest file sizes
-         if (lowerPath.find("video") != std::string::npos ||
-             lowerPath.find("movies") != std::string::npos ||
-             lowerPath.find("media") != std::string::npos)
-            return 2 * 1024 * 1024 * 1024ULL; // 2GB - video files
-
-         else if (lowerPath.find("backup") != std::string::npos ||
-                 lowerPath.find("archive") != std::string::npos ||
-                 lowerPath.find("dump") != std::string::npos)
-            return 1 * 1024 * 1024 * 1024ULL; // 1GB - backup files
-
-         else if (lowerPath.find("images") != std::string::npos ||
-                 lowerPath.find("photos") != std::string::npos ||
-                 lowerPath.find("pictures") != std::string::npos)
-            return 5 * 1024 * 1024; // 5MB - image files
-
-         else if (lowerPath.find("log") != std::string::npos ||
-                 lowerPath.find("config") != std::string::npos ||
-                 lowerPath.find("conf") != std::string::npos)
-            return 1 * 1024 * 1024; // 1MB - log/config files
-
-         // No specific directory hint found
-         return 0;
+         // Check directory hints
+         if(lowerPath.find("video") != std::string::npos)
+            return 1ULL * 1024 * 1024 * 1024; // 1GB
+         if(lowerPath.find("audio") != std::string::npos)
+            return 10ULL * 1024 * 1024; // 10MB
+         if(lowerPath.find("logs") != std::string::npos)
+            return 1ULL * 1024 * 1024; // 1MB
+         
+         return 0; // No hints found
       }
 };
 
