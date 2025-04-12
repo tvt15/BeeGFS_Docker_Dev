@@ -50,29 +50,29 @@ RUN rm -rf thirdparty/source/gtest && \
 RUN rm -rf thirdparty/source/boost && \
     mv thirdparty/source/boost_1_61_0 thirdparty/source/boost
 
-# Build BeeGFS
-RUN mkdir -p build && \
-    cd build && \
-    cmake .. -DBEEGFS_VERSION=7.3.2 && \
-    make -j$(nproc) BEEGFS_SKIP_CLIENT_BUILD=1
+# # Build BeeGFS
+# RUN mkdir -p build && \
+#     cd build && \
+#     cmake .. -DBEEGFS_VERSION=7.3.2 && \
+#     make -j$(nproc) BEEGFS_SKIP_CLIENT_BUILD=1
 
-# Create necessary directories
-RUN mkdir -p /data/mgmt_tgt_mgmt01 \
-    /data/meta_01_tgt_0101 \
-    /data/stor_01_tgt_101 \
-    /data/stor_01_tgt_102 \
-    /etc/beegfs \
-    /var/lib/beegfs \
-    /var/log/beegfs
+# # Create necessary directories
+# RUN mkdir -p /data/mgmt_tgt_mgmt01 \
+#     /data/meta_01_tgt_0101 \
+#     /data/stor_01_tgt_101 \
+#     /data/stor_01_tgt_102 \
+#     /etc/beegfs \
+#     /var/lib/beegfs \
+#     /var/log/beegfs
 
-# Copy built binaries and setup tools to system paths
-RUN cp /beegfs/build/mgmtd/beegfs-mgmtd /usr/sbin/ && \
-    cp /beegfs/build/meta/beegfs-meta /usr/sbin/ && \
-    cp /beegfs/build/storage/beegfs-storage /usr/sbin/ && \
-    cp /beegfs/mgmtd/build/dist/sbin/beegfs-setup-mgmtd /usr/sbin/ && \
-    cp /beegfs/meta/build/dist/sbin/beegfs-setup-meta /usr/sbin/ && \
-    cp /beegfs/storage/build/dist/sbin/beegfs-setup-storage /usr/sbin/ && \
-    chmod +x /usr/sbin/beegfs-*
+# # Copy built binaries and setup tools to system paths
+# RUN cp /beegfs/build/mgmtd/beegfs-mgmtd /usr/sbin/ && \
+#     cp /beegfs/build/meta/beegfs-meta /usr/sbin/ && \
+#     cp /beegfs/build/storage/beegfs-storage /usr/sbin/ && \
+#     cp /beegfs/mgmtd/build/dist/sbin/beegfs-setup-mgmtd /usr/sbin/ && \
+#     cp /beegfs/meta/build/dist/sbin/beegfs-setup-meta /usr/sbin/ && \
+#     cp /beegfs/storage/build/dist/sbin/beegfs-setup-storage /usr/sbin/ && \
+#     chmod +x /usr/sbin/beegfs-*
 
 # Set default command
 CMD ["/bin/bash"] 
